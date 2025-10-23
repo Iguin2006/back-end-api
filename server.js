@@ -181,6 +181,90 @@ app.put("/questoes/:id", async (req, res) => {
   }
 });
 
+//Filmes
+
+app.get("/filmes", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM Filmes ORDER BY id ASC");
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Erro ao buscar filmes:", error);
+    res.status(500).json({ error: "Erro ao buscar filmes" });
+  }
+});
+
+app.get("/filmes/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("SELECT * FROM Filmes WHERE id = $1", [id]);
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Filme não encontrado" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Erro ao buscar filme:", error);
+    res.status(500).json({ error: "Erro ao buscar filme" });
+  }
+});
+
+
+app.post("/filmes", async (req, res) => {
+  const { Nome, Categorias } = req.body;
+
+  if (!Nome || !Categorias) {
+    return res.status(400).json({ error: "Preencha todos os campos!" });
+  }
+
+  try {
+    const result = await pool.query(
+      "INSERT INTO Filmes (Nome, Categorias) VALUES ($1, $2) RETURNING *",
+      [Nome, Categorias]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error("Erro ao adicionar filme:", error);
+    res.status(500).json({ error: "Erro ao adicionar filme" });
+  }
+});
+
+app.put("/filmes/:id", async (req, res) => {
+  const { id } = req.params;
+  const { Nome, Categorias } = req.body;
+
+  try {
+    const result = await pool.query(
+      "UPDATE Filmes SET Nome = $1, Categorias = $2 WHERE id = $3 RETURNING *",
+      [Nome, Categorias, id]
+    );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Filme não encontrado" });
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Erro ao atualizar filme:", error);
+    res.status(500).json({ error: "Erro ao atualizar filme" });
+  }
+});
+
+app.delete("/filmes/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM Filmes WHERE id = $1 RETURNING *",
+      [id]
+    );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "Filme não encontrado" });
+
+    res.json({ message: "Filme deletado com sucesso" });
+  } catch (error) {
+    console.error("Erro ao deletar filme:", error);
+    res.status(500).json({ error: "Erro ao deletar filme" });
+  }
+});
+
 app.listen(port, () => {            // Um socket para "escutar" as requisições
   console.log(`Serviço rodando na porta:  ${port}`);
 });
