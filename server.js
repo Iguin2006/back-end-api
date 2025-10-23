@@ -183,9 +183,13 @@ app.put("/questoes/:id", async (req, res) => {
 
 //Filmes
 
+// ================= ROTAS DE FILMES =================
+
 app.get("/filmes", async (req, res) => {
+  console.log("Rota GET /filmes solicitada");
   try {
-    const result = await pool.query("SELECT * FROM Filmes ORDER BY id ASC");
+    const db = conectarBD();
+    const result = await db.query("SELECT * FROM Filmes ORDER BY id ASC");
     res.json(result.rows);
   } catch (error) {
     console.error("Erro ao buscar filmes:", error);
@@ -194,9 +198,11 @@ app.get("/filmes", async (req, res) => {
 });
 
 app.get("/filmes/:id", async (req, res) => {
+  console.log("Rota GET /filmes/:id solicitada");
   const { id } = req.params;
   try {
-    const result = await pool.query("SELECT * FROM Filmes WHERE id = $1", [id]);
+    const db = conectarBD();
+    const result = await db.query("SELECT * FROM Filmes WHERE id = $1", [id]);
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Filme não encontrado" });
     res.json(result.rows[0]);
@@ -206,8 +212,8 @@ app.get("/filmes/:id", async (req, res) => {
   }
 });
 
-
 app.post("/filmes", async (req, res) => {
+  console.log("Rota POST /filmes solicitada");
   const { Nome, Categorias } = req.body;
 
   if (!Nome || !Categorias) {
@@ -215,11 +221,15 @@ app.post("/filmes", async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
+    const db = conectarBD();
+    const result = await db.query(
       "INSERT INTO Filmes (Nome, Categorias) VALUES ($1, $2) RETURNING *",
       [Nome, Categorias]
     );
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({
+      mensagem: "Filme criado com sucesso!",
+      filme: result.rows[0],
+    });
   } catch (error) {
     console.error("Erro ao adicionar filme:", error);
     res.status(500).json({ error: "Erro ao adicionar filme" });
@@ -227,19 +237,30 @@ app.post("/filmes", async (req, res) => {
 });
 
 app.put("/filmes/:id", async (req, res) => {
+  console.log("Rota PUT /filmes/:id solicitada");
   const { id } = req.params;
   const { Nome, Categorias } = req.body;
 
   try {
-    const result = await pool.query(
-      "UPDATE Filmes SET Nome = $1, Categorias = $2 WHERE id = $3 RETURNING *",
-      [Nome, Categorias, id]
-    );
+    const db = conectarBD();
+    const existente = await db.query("SELECT * FROM Filmes WHERE id = $1", [id]);
 
-    if (result.rows.length === 0)
+    if (existente.rows.length === 0)
       return res.status(404).json({ error: "Filme não encontrado" });
 
-    res.json(result.rows[0]);
+    const atual = existente.rows[0];
+    const novoNome = Nome || atual.nome;
+    const novasCategorias = Categorias || atual.categorias;
+
+    const result = await db.query(
+      "UPDATE Filmes SET Nome = $1, Categorias = $2 WHERE id = $3 RETURNING *",
+      [novoNome, novasCategorias, id]
+    );
+
+    res.json({
+      mensagem: "Filme atualizado com sucesso!",
+      filme: result.rows[0],
+    });
   } catch (error) {
     console.error("Erro ao atualizar filme:", error);
     res.status(500).json({ error: "Erro ao atualizar filme" });
@@ -247,10 +268,12 @@ app.put("/filmes/:id", async (req, res) => {
 });
 
 app.delete("/filmes/:id", async (req, res) => {
+  console.log("Rota DELETE /filmes/:id solicitada");
   const { id } = req.params;
 
   try {
-    const result = await pool.query(
+    const db = conectarBD();
+    const result = await db.query(
       "DELETE FROM Filmes WHERE id = $1 RETURNING *",
       [id]
     );
@@ -258,12 +281,13 @@ app.delete("/filmes/:id", async (req, res) => {
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Filme não encontrado" });
 
-    res.json({ message: "Filme deletado com sucesso" });
+    res.json({ mensagem: "Filme deletado com sucesso!" });
   } catch (error) {
     console.error("Erro ao deletar filme:", error);
     res.status(500).json({ error: "Erro ao deletar filme" });
   }
 });
+
 
 app.listen(port, () => {            // Um socket para "escutar" as requisições
   console.log(`Serviço rodando na porta:  ${port}`);
